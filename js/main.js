@@ -8,6 +8,7 @@ var markers = []
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', (event) => {
+  registerServiceWorker();
   fetchNeighborhoods();
   fetchCuisines();
 });
@@ -80,6 +81,11 @@ window.initMap = () => {
     center: loc,
     scrollwheel: false
   });
+  google.maps.event.addDomListener(window, "resize", function() {
+    var center = self.map.getCenter();
+    google.maps.event.trigger(self.map, "resize");
+    self.map.setCenter(center); 
+  });
   updateRestaurants();
 }
 
@@ -143,22 +149,26 @@ createRestaurantHTML = (restaurant) => {
   image.src = DBHelper.imageUrlForRestaurant(restaurant);
   li.append(image);
 
+  const detailHolder = document.createElement('div');
+
   const name = document.createElement('h1');
   name.innerHTML = restaurant.name;
-  li.append(name);
+  detailHolder.append(name);
 
   const neighborhood = document.createElement('p');
   neighborhood.innerHTML = restaurant.neighborhood;
-  li.append(neighborhood);
+  detailHolder.append(neighborhood);
 
   const address = document.createElement('p');
   address.innerHTML = restaurant.address;
-  li.append(address);
+  detailHolder.append(address);
 
   const more = document.createElement('a');
   more.innerHTML = 'View Details';
   more.href = DBHelper.urlForRestaurant(restaurant);
-  li.append(more)
+  detailHolder.append(more)
+
+  li.append(detailHolder);
 
   return li
 }
@@ -176,3 +186,11 @@ addMarkersToMap = (restaurants = self.restaurants) => {
     self.markers.push(marker);
   });
 }
+registerServiceWorker = function () {
+  if (!navigator.serviceWorker) return;
+  navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(function (reg) {
+    console.log("Registered");
+  }).catch(function (error) {
+    console.log(error);
+  });
+};

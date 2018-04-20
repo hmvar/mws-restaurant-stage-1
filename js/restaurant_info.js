@@ -161,3 +161,28 @@ getParameterByName = (name, url) => {
     return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
+/**
+ * Scroll for map on restaurant page
+ */
+window.onscroll = function () {
+  if ((window.innerWidth > 640) && (window.innerWidth < 1330)) {
+    let map = document.getElementById("map-container");
+    let reviews = document.getElementById("reviews-container");
+    if (window.innerHeight > reviews.getBoundingClientRect().top) {
+      map.style.position = "absolute";
+      map.style.bottom = "0px";
+    }
+    else {
+      map.style.position = "fixed";
+    }
+  }
+
+}
+window.onresize = function () {
+  if ((window.innerWidth > 640) && (window.innerWidth < 1330)) {
+    window.onscroll();
+  } 
+  else {
+    document.getElementById("map-container").style.position = "static";
+  }
+}
