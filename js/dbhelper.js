@@ -150,9 +150,14 @@ class DBHelper {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`/img/${restaurant.photograph}`);
+    return (`/img/296/${restaurant.photograph}_296.jpg`);
   }
-
+  static imageSrcSetForRestaurantMain(restaurant) {
+    return (`/img/400/${restaurant.photograph}_400.jpg 444w, /img/625/${restaurant.photograph}_625.jpg 549w, /img/296/${restaurant.photograph}_296.jpg 550w`);
+  }
+  static imageSrcSetForRestaurantDetail(restaurant) {
+    return (`/img/296/${restaurant.photograph}_296.jpg 336w, /img/400/${restaurant.photograph}_400.jpg 439w, /img/625/${restaurant.photograph}_625.jpg 440w`);    
+  }
   /**
    * Map marker for a restaurant.
    */
