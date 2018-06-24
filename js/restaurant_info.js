@@ -62,7 +62,7 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
   image.className = 'restaurant-img'
   image.src = DBHelper.imageUrlForRestaurant(restaurant);
   image.srcset = DBHelper.imageSrcSetForRestaurantDetail(restaurant);
-  image.alt = "";
+  image.alt = "Image of " + restaurant.name;
 
   const cuisine = document.getElementById('restaurant-cuisine');
   cuisine.innerHTML = restaurant.cuisine_type;
@@ -100,7 +100,7 @@ fillRestaurantHoursHTML = (operatingHours = self.restaurant.operating_hours) => 
  */
 fillReviewsHTML = (reviews = self.restaurant.reviews) => {
   const container = document.getElementById('reviews-container');
-  const title = document.createElement('h2');
+  const title = document.createElement('h3');
   title.innerHTML = 'Reviews';
   container.appendChild(title);
 
@@ -148,6 +148,7 @@ fillBreadcrumb = (restaurant=self.restaurant) => {
   const breadcrumb = document.getElementById('breadcrumb');
   const li = document.createElement('li');
   li.innerHTML = restaurant.name;
+  li.setAttribute("aria-current", "page");
   breadcrumb.appendChild(li);
 }
 
@@ -174,11 +175,10 @@ window.onscroll = function () {
     let map = document.getElementById("map-container");
     let reviews = document.getElementById("reviews-container");
     if (window.innerHeight > reviews.getBoundingClientRect().top) {
-      map.style.position = "absolute";
-      map.style.bottom = "0px";
+      map.className = "map-absolute";
     }
     else {
-      map.style.position = "fixed";
+      map.className = "map-fixed";
     }
   }
 
@@ -188,6 +188,9 @@ window.onresize = function () {
     window.onscroll();
   } 
   else {
-    document.getElementById("map-container").style.position = "static";
+    document.getElementById("map-container").className = "";
   }
+}
+window.onload = function () {
+  window.onscroll();
 }

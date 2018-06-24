@@ -86,6 +86,11 @@ nav h1 a {
   letter-spacing: 10px;
   text-transform: uppercase;
 }
+.nav-breadcrumb {
+  padding: 0;
+  width: 100%;
+  text-align: left;
+}
 #breadcrumb {
     padding: 10px 40px 16px;
     list-style: none;
@@ -270,7 +275,7 @@ nav h1 a {
 #reviews-container {
   padding: 30px 40px 80px;
 }
-#reviews-container h2 {
+#reviews-container h3 {
   color: #0077c8;
   font-size: 24pt;
   font-weight: 300;
@@ -346,6 +351,13 @@ nav h1 a {
   .inside #map-container {
     width: 50%;
     height: calc(100vh - 101px);
+  }
+  .inside .map-fixed {
+    position: fixed;
+  }
+  .inside .map-absolute {
+    position: absolute;
+    bottom: 0;
   }
   .inside #restaurant-container {
     width: calc(50% - 40px);
