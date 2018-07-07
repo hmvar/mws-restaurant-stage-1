@@ -1,0 +1,27 @@
+{
+  "name": "mws-restaurant",
+  "version": "1.0.0",
+  "description": "Udacity MWS project",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hmvar/mws-restaurant-stage-1.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hmvar/mws-restaurant-stage-1/issues"
+  },
+  "homepage": "https://github.com/hmvar/mws-restaurant-stage-1#readme",
+  "devDependencies": {
+    "gulp": "^4.0.0"
+  },
+  "dependencies": {
+    "browser-sync": "^2.24.5",
+    "gulp-autoprefixer": "^5.0.0",
+    "gulp-sass": "^4.0.1"
+  }
+}
