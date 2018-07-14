@@ -16,18 +16,18 @@ self.addEventListener('install', function (event) {
 });
 self.addEventListener('activate', function(event) {
 	event.waitUntil(
-	  caches.keys().then(function(cacheNames) {
-		 return Promise.all(
-			cacheNames.filter(function(cacheName) {
-			  return cacheName.startsWith('mws-review') &&
-						!allCaches.includes(cacheName);
-			}).map(function(cacheName) {
-			  return caches.delete(cacheName);
-			})
-		 );
-	  })
+		caches.keys().then(function(cacheNames) {
+			return Promise.all(
+				cacheNames.filter(function(cacheName) {
+					return cacheName.startsWith('mws-review') &&
+							!allCaches.includes(cacheName);
+				}).map(function(cacheName) {
+					return caches.delete(cacheName);
+				})
+			);
+		})
 	);
- });
+});
 self.addEventListener('fetch', function(event) {
 	let requestUrl = new URL(event.request.url);
 	if (requestUrl.origin === location.origin) {
@@ -46,7 +46,7 @@ self.addEventListener('fetch', function(event) {
 	}
 	event.respondWith(
 		caches.match(event.request).then(function(response) {
-		return response || fetch(event.request);
+			return response || fetch(event.request);
 		})
 	);
- });
+});
