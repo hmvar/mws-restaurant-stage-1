@@ -44,7 +44,7 @@ gulp.task('copy-images', function () {
 		.pipe(gulp.dest('./dist/img'));
 });
 gulp.task('scripts', function() {
-	return gulp.src(['js/idb.js', 'js/dbhelper.js', 'js/app.js', 'js/main.js'])
+	return gulp.src(['js/idb.js', 'js/dbhelper.js', 'js/app.js', 'js/main.js', 'js/restaurant_info.js'])
 	//return gulp.src('js/**/*.js')
 		.pipe(babel({
 			presets: ['env']
@@ -53,7 +53,7 @@ gulp.task('scripts', function() {
 		.pipe(gulp.dest('dist/js/'));
 });
 gulp.task('scripts-dist', function() {
-	gulp.src(['js/dbhelper.js', 'js/app.js', 'js/main.js'])
+	gulp.src(['js/dbhelper.js', 'js/app.js', 'js/main.js', 'js/restaurant_info.js'])
 		.pipe(sourcemaps.init())
 		.pipe(babel())
 		.pipe(concat('all.js'))

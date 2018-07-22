@@ -13,6 +13,17 @@ let registerServiceWorker = function () {
 		return error;
 	});
 };
+let lazyLoadImgs = function () {
+	let imgs = document.querySelectorAll('img[data-src]');
+	imgs.forEach(function (img) {
+		img.setAttribute('src', img.getAttribute('data-src'));
+		img.setAttribute('srcset', img.getAttribute('data-srcset'));
+		img.onload = function () {
+			img.removeAttribute('data-src');
+			img.removeAttribute('data-srcset');
+		};
+	});
+};
 // app.createUpdateDialog = function (worker) {
 // 	let container = document.createElement('div');
 // 	let message = document.createElement('p');

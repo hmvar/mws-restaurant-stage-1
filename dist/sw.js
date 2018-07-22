@@ -16,7 +16,6 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function(event) {
 	event.waitUntil(
 		caches.keys().then(function(cacheNames) {
-			console.log('test');
 			return Promise.all(
 				cacheNames.filter(function(cacheName) {
 					return cacheName.startsWith('mws-review') &&

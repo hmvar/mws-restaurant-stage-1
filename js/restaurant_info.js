@@ -69,6 +69,7 @@ let fetchRestaurantFromURL = (callback) => {
 				return;
 			}
 			fillRestaurantHTML();
+			lazyLoadImgs();
 			callback(null, restaurant);
 		});
 	}
@@ -86,8 +87,8 @@ let fillRestaurantHTML = (restaurant = self.restaurant) => {
 
 	const image = document.getElementById('restaurant-img');
 	image.className = 'restaurant-img';
-	image.src = DBHelper.imageUrlForRestaurant(restaurant);
-	image.srcset = DBHelper.imageSrcSetForRestaurantDetail(restaurant);
+	image.dataset.src = DBHelper.imageUrlForRestaurant(restaurant);
+	image.dataset.srcset = DBHelper.imageSrcSetForRestaurantDetail(restaurant);
 	image.alt = 'Image of ' + restaurant.name;
 
 	const cuisine = document.getElementById('restaurant-cuisine');
