@@ -36,10 +36,17 @@ class DBHelper {
 		if (!navigator.serviceWorker) {
 			return Promise.resolve();
 		}
-		return idb.open('mws-restaurant', 1, function(upgradeDb) {
-			let store = upgradeDb.createObjectStore('restaurants', {
-				keyPath: 'id'
-			});
+		return idb.open('mws-restaurant', 2, function(upgradeDb) {
+			switch (upgradeDb.oldVersion) {
+				case 0:
+					upgradeDb.createObjectStore('restaurants', {
+						keyPath: 'id'
+					});
+				case 1:
+					upgradeDb.createObjectStore('reviews', {
+						keyPath: 'id'
+					}).createIndex('restaurant', 'restaurant_id');
+			}
 		});
 	}
 	/**
@@ -230,6 +237,23 @@ class DBHelper {
 		return marker;
 	}
 
+	static updateFavourite (restaurantId, isFavourite) { 
+		fetch(this.DATABASE_URL + `/${restaurantId}/?is_favourite=${isFavourite}`, {
+			method: 'PUT'
+		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
+	}
+
+	static updateFavouriteIdb (restaurantId, isFavourite) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('restaurants', 'readwrite').objectStore('restaurants');
+			store.get(restaurantId).then(restaurant => {
+				restaurant.is_favorite = isFavourite;
+				store.put(restaurant);
+			});
+		});
+	}
+
 }
 let app = {};
 let registerServiceWorker = function () {
@@ -251,14 +275,11 @@ let lazyLoadImgs = function () {
 		rootMargin: '0px',
 		threshold: 0.01
 	};
-	
 	let imgs = document.querySelectorAll('img[data-src]');
 	let onIntersection = function (entries) {
-		console.log(entries);
 		entries.forEach(entry => {
 			if (entry.intersectionRatio > 0) {
 				let img = entry.target;
-				console.log(img);
 				observer.unobserve(img);
 				img.setAttribute('src', img.getAttribute('data-src'));
 				img.setAttribute('srcset', img.getAttribute('data-srcset'));
@@ -266,7 +287,6 @@ let lazyLoadImgs = function () {
 		});
 	};
 	let observer = new IntersectionObserver(onIntersection, conf);
-	
 	imgs.forEach(image => {
 		observer.observe(image);
 	});
@@ -276,7 +296,6 @@ let lazyLoadImgs = function () {
 			img.removeAttribute('data-srcset');
 		};
 	});
-	
 };
 // app.createUpdateDialog = function (worker) {
 // 	let container = document.createElement('div');
@@ -314,7 +333,7 @@ var markers = [];
  *  *  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', () => {
-	registerServiceWorker();
+	//registerServiceWorker();
 	fetchNeighborhoods();
 	fetchCuisines();
 	DBHelper.OpenDbPromise();	
@@ -452,6 +471,22 @@ let fillRestaurantsHTML = (restaurants = self.restaurants) => {
  */
 let createRestaurantHTML = (restaurant) => {
 	const li = document.createElement('li');
+
+	const favStar = document.createElement('button');
+	favStar.className = 'fav-star';
+	favStar.innerHTML = restaurant.is_favorite ? '★' : '☆';
+	favStar.onclick = function () {
+		if (this.innerHTML == '★') {
+			DBHelper.updateFavourite(restaurant.id, false);
+			this.innerHTML = '☆';
+		} 
+		else {
+			DBHelper.updateFavourite(restaurant.id, true);
+			this.innerHTML = '★';
+		}
+	};
+	li.append(favStar);
+
 
 	const image = document.createElement('img');
 	image.className = 'restaurant-img';

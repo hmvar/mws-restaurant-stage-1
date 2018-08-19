@@ -7,7 +7,7 @@ var markers = [];
  *  *  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', () => {
-	registerServiceWorker();
+	//registerServiceWorker();
 	fetchNeighborhoods();
 	fetchCuisines();
 	DBHelper.OpenDbPromise();	
@@ -145,6 +145,22 @@ let fillRestaurantsHTML = (restaurants = self.restaurants) => {
  */
 let createRestaurantHTML = (restaurant) => {
 	const li = document.createElement('li');
+
+	const favStar = document.createElement('button');
+	favStar.className = 'fav-star';
+	favStar.innerHTML = restaurant.is_favorite ? '★' : '☆';
+	favStar.onclick = function () {
+		if (this.innerHTML == '★') {
+			DBHelper.updateFavourite(restaurant.id, false);
+			this.innerHTML = '☆';
+		} 
+		else {
+			DBHelper.updateFavourite(restaurant.id, true);
+			this.innerHTML = '★';
+		}
+	};
+	li.append(favStar);
+
 
 	const image = document.createElement('img');
 	image.className = 'restaurant-img';

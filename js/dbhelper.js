@@ -17,10 +17,17 @@ class DBHelper {
 		if (!navigator.serviceWorker) {
 			return Promise.resolve();
 		}
-		return idb.open('mws-restaurant', 1, function(upgradeDb) {
-			let store = upgradeDb.createObjectStore('restaurants', {
-				keyPath: 'id'
-			});
+		return idb.open('mws-restaurant', 2, function(upgradeDb) {
+			switch (upgradeDb.oldVersion) {
+				case 0:
+					upgradeDb.createObjectStore('restaurants', {
+						keyPath: 'id'
+					});
+				case 1:
+					upgradeDb.createObjectStore('reviews', {
+						keyPath: 'id'
+					}).createIndex('restaurant', 'restaurant_id');
+			}
 		});
 	}
 	/**
@@ -209,6 +216,23 @@ class DBHelper {
 			animation: google.maps.Animation.DROP}
 		);
 		return marker;
+	}
+
+	static updateFavourite (restaurantId, isFavourite) { 
+		fetch(this.DATABASE_URL + `/${restaurantId}/?is_favourite=${isFavourite}`, {
+			method: 'PUT'
+		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
+	}
+
+	static updateFavouriteIdb (restaurantId, isFavourite) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('restaurants', 'readwrite').objectStore('restaurants');
+			store.get(restaurantId).then(restaurant => {
+				restaurant.is_favorite = isFavourite;
+				store.put(restaurant);
+			});
+		});
 	}
 
 }

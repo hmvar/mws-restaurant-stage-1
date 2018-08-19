@@ -174,6 +174,7 @@ nav h1 a {
   padding: 0 20px 20px;
   text-align: left;
   width: calc(100% - 44px);
+  position: relative;
 }
 #restaurants-list .restaurant-img {
   background-color: #ccc;
@@ -208,6 +209,20 @@ nav h1 a {
   text-decoration: none;
   text-transform: uppercase;
   width: 100%;
+}
+.fav-star {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 28px;
+  height: 42px;
+  width: 42px;
+  background: #fff;
+  border-radius: 21px;
+  border: 1px #9b9b9b solid;
+  color: #ffac33;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* ====================== Restaurant Details ====================== */
@@ -373,6 +388,7 @@ nav h1 a {
     position: fixed;
     top: 0;
     width: 100%;
+    z-index: 1000;
   }
   #filter-container {
     text-align: left;
