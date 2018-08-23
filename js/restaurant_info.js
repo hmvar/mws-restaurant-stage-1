@@ -39,10 +39,13 @@ if (window.location.pathname === '/restaurant.html') {
 		}
 	};
 	window.onresize = function () {
+		let map = document.getElementById('map-container');
 		if ((window.innerWidth > 640) && (window.innerWidth < 1330)) {
+			google.maps.event.trigger(map, "resize");
 			window.onscroll();
 		} 
 		else {
+			google.maps.event.trigger(map, "resize");
 			document.getElementById('map-container').className = '';
 		}
 	};
@@ -165,6 +168,10 @@ let createReviewHTML = (review) => {
 	comments.innerHTML = review.comments;
 	li.appendChild(comments);
 
+	if (review.offline) {
+		li.className = 'review-offline';
+	}
+
 	return li;
 };
 
@@ -193,4 +200,50 @@ let getParameterByName = (name, url) => {
 	if (!results[2])
 		return '';
 	return decodeURIComponent(results[2].replace(/\+/g, ' '));
+};
+
+let submitReview = function () {
+	event.preventDefault();
+	let restaurantId = getParameterByName('id');
+	let name = document.getElementById('review-name').value;
+	let rating = document.getElementById('review-rating');
+	rating = rating.options[rating.selectedIndex].value;
+	let comment = document.getElementById('review-comment').value;
+	const review = {
+		'restaurant_id': restaurantId,
+		'name': name,
+		'rating': rating,
+		'comments': comment
+	};
+	if (!navigator.onLine) {
+		uploadReviewWhenOnline(review);
+		review.offline = true;
+	} else {
+		DBHelper.saveReview(review);
+	}
+	document.getElementById('reviews-list').appendChild(createReviewHTML(review));
+	document.getElementById('add-review-form').reset();
+};
+
+let uploadReviewWhenOnline = function (review) {
+	let index = (localStorage.getItem('reviewIndex') != null) ? parseInt(localStorage.getItem('reviewIndex')) : 0;
+	index += 1;
+	localStorage.setItem('reviewIndex', index);
+	localStorage.setItem(`review-${index}`, JSON.stringify(review));
+	window.addEventListener('online', function () {
+		let id = parseInt(localStorage.getItem('reviewIndex'));
+		let review;
+		for (let i = 1; i <= id; i++) {
+			review = JSON.parse(localStorage.getItem(`review-${i}`));
+			if (review != null) {
+				DBHelper.saveReview(review);
+				localStorage.removeItem(`review-${i}`);
+			}
+		}
+		localStorage.removeItem('reviewIndex');
+		let offlineReviews = document.querySelectorAll('.review-offline');
+		offlineReviews.forEach(offRev => {
+			offRev.className = '';
+		});
+	});
 };

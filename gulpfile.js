@@ -45,21 +45,8 @@ gulp.task('copy-images', function () {
 });
 gulp.task('scripts', function() {
 	return gulp.src(['js/idb.js', 'js/dbhelper.js', 'js/app.js', 'js/main.js', 'js/restaurant_info.js'])
-	//return gulp.src('js/**/*.js')
-		// .pipe(babel({
-		// 	presets: ['env']
-		// }))
 		.pipe(concat('all.js'))
 		.pipe(gulp.dest('dist/js/'));
-});
-gulp.task('scripts-dist', function() {
-	return gulp.src(['js/idb.js', 'js/dbhelper.js', 'js/app.js', 'js/main.js', 'js/restaurant_info.js'])
-		.pipe(sourcemaps.init())
-		.pipe(babel())
-		.pipe(concat('all.js'))
-		.pipe(uglify())
-		.pipe(sourcemaps.write())
-		.pipe(gulp.dest('dist/js'));
 });
 gulp.task('default', gulp.series(
 	'lint',
@@ -67,23 +54,6 @@ gulp.task('default', gulp.series(
 	'copy-html',
 	'copy-images',
 	'scripts',
-	function () {
-		gulp.watch('sass/**/*.scss', gulp.series['styles']);
-		gulp.watch('js/**/*.js', gulp.series['lint']);
-		gulp.watch('js/**/*.js', gulp.series['scripts']);
-		gulp.watch('*.html', gulp.series['copy-html']);
-		gulp.watch('*.html').on('change', browserSync.reload);
-		browserSync.init({
-			server: './dist'
-		});
-	})
-);
-gulp.task('dist',gulp.series(
-	'lint',
-	'styles',
-	'copy-html',
-	'copy-images',
-	'scripts-dist',
 	function () {
 		gulp.watch('sass/**/*.scss', gulp.series['styles']);
 		gulp.watch('js/**/*.js', gulp.series['lint']);

@@ -29,7 +29,7 @@ class DBHelper {
 	 */
 	static get DATABASE_URL() {
 		const port = 1337; // Change this to your server port
-		return `http://localhost:${port}/restaurants`;
+		return `http://localhost:${port}/`;
 	}
 
 	static OpenDbPromise () {
@@ -68,7 +68,7 @@ class DBHelper {
 		});
 	}
 	static fetchRestaurantsFromServer(callback) {
-		fetch(DBHelper.DATABASE_URL)
+		fetch(DBHelper.DATABASE_URL + 'restaurants')
 			.then(function (response) {
 				return response.json();
 			})
@@ -99,20 +99,20 @@ class DBHelper {
 			}
 			const index = db.transaction('restaurants').objectStore('restaurants');
 			return index.get(id).then(restaurant => {
-				if (!restaurant) {
-					callback(null, restaurant);
+				if (restaurant) {
+					DBHelper.fetchReviewsByRestaurantId(restaurant, callback);
 				}
 				DBHelper.fetchRestaurantByIdFromServer(id, callback);
 			});
 		});		
 	}
 	static fetchRestaurantByIdFromServer(id, callback) {
-		fetch(DBHelper.DATABASE_URL + `/${id}`)
+		fetch(DBHelper.DATABASE_URL + `restaurants/${id}`)
 			.then(function (response) {
 				return response.json();
 			})
 			.then(function (data) {
-				callback(null, data);
+				DBHelper.fetchReviewsFromServer(data, callback);
 			});
 	}
 	/**
@@ -204,6 +204,49 @@ class DBHelper {
 		});
 	}
 
+	static fetchReviewsByRestaurantId (restaurant, callback) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			if (!db) {
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			}
+			const index = db.transaction('reviews').objectStore('restaurants');
+			return index.getAll(restaurant.id).then(reviews => {
+				if (!reviews) {
+					return(reviews);
+				}
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			});
+		});
+	} 
+
+	static fetchReviewsFromServer (restaurant, callback) {
+		fetch(this.DATABASE_URL + `reviews/?restaurant_id=${restaurant.id}`)
+			.then(function (response) {
+				return response.json();
+			})
+			.then(function (data) {
+				DBHelper.saveReviewsIdb(data);
+				restaurant.reviews = data;
+				callback(null, restaurant);
+			});
+	}
+
+	static saveReviewsIdb(reviews) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('reviews', 'readwrite').objectStore('reviews');
+			if (Array.isArray(reviews)) {
+				reviews.forEach(function(review) {
+					store.put(review);
+				});
+			}
+			else {
+				store.put(reviews);
+			}
+
+		});
+	}
 	/**
 	 * Restaurant page URL.
 	 */
@@ -238,7 +281,7 @@ class DBHelper {
 	}
 
 	static updateFavourite (restaurantId, isFavourite) { 
-		fetch(this.DATABASE_URL + `/${restaurantId}/?is_favourite=${isFavourite}`, {
+		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favourite=${isFavourite}`, {
 			method: 'PUT'
 		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
 	}
@@ -251,6 +294,18 @@ class DBHelper {
 				restaurant.is_favorite = isFavourite;
 				store.put(restaurant);
 			});
+		});
+	}
+
+	static saveReview (review) {
+		fetch(this.DATABASE_URL + 'reviews', {
+			method: 'POST',
+			body: JSON.stringify(review),
+			headers: new Headers({
+				'Content-Type': 'application/json'
+			})
+		}).then(function (response) {
+			return response;
 		});
 	}
 
@@ -333,7 +388,7 @@ var markers = [];
  *  *  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', () => {
-	//registerServiceWorker();
+	registerServiceWorker();
 	fetchNeighborhoods();
 	fetchCuisines();
 	DBHelper.OpenDbPromise();	
@@ -573,10 +628,13 @@ if (window.location.pathname === '/restaurant.html') {
 		}
 	};
 	window.onresize = function () {
+		let map = document.getElementById('map-container');
 		if ((window.innerWidth > 640) && (window.innerWidth < 1330)) {
+			google.maps.event.trigger(map, "resize");
 			window.onscroll();
 		} 
 		else {
+			google.maps.event.trigger(map, "resize");
 			document.getElementById('map-container').className = '';
 		}
 	};
@@ -699,6 +757,10 @@ let createReviewHTML = (review) => {
 	comments.innerHTML = review.comments;
 	li.appendChild(comments);
 
+	if (review.offline) {
+		li.className = 'review-offline';
+	}
+
 	return li;
 };
 
@@ -727,4 +789,50 @@ let getParameterByName = (name, url) => {
 	if (!results[2])
 		return '';
 	return decodeURIComponent(results[2].replace(/\+/g, ' '));
+};
+
+let submitReview = function () {
+	event.preventDefault();
+	let restaurantId = getParameterByName('id');
+	let name = document.getElementById('review-name').value;
+	let rating = document.getElementById('review-rating');
+	rating = rating.options[rating.selectedIndex].value;
+	let comment = document.getElementById('review-comment').value;
+	const review = {
+		'restaurant_id': restaurantId,
+		'name': name,
+		'rating': rating,
+		'comments': comment
+	};
+	if (!navigator.onLine) {
+		uploadReviewWhenOnline(review);
+		review.offline = true;
+	} else {
+		DBHelper.saveReview(review);
+	}
+	document.getElementById('reviews-list').appendChild(createReviewHTML(review));
+	document.getElementById('add-review-form').reset();
+};
+
+let uploadReviewWhenOnline = function (review) {
+	let index = (localStorage.getItem('reviewIndex') != null) ? parseInt(localStorage.getItem('reviewIndex')) : 0;
+	index += 1;
+	localStorage.setItem('reviewIndex', index);
+	localStorage.setItem(`review-${index}`, JSON.stringify(review));
+	window.addEventListener('online', function () {
+		let id = parseInt(localStorage.getItem('reviewIndex'));
+		let review;
+		for (let i = 1; i <= id; i++) {
+			review = JSON.parse(localStorage.getItem(`review-${i}`));
+			if (review != null) {
+				DBHelper.saveReview(review);
+				localStorage.removeItem(`review-${i}`);
+			}
+		}
+		localStorage.removeItem('reviewIndex');
+		let offlineReviews = document.querySelectorAll('.review-offline');
+		offlineReviews.forEach(offRev => {
+			offRev.className = '';
+		});
+	});
 };

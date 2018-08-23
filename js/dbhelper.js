@@ -10,7 +10,7 @@ class DBHelper {
 	 */
 	static get DATABASE_URL() {
 		const port = 1337; // Change this to your server port
-		return `http://localhost:${port}/restaurants`;
+		return `http://localhost:${port}/`;
 	}
 
 	static OpenDbPromise () {
@@ -49,7 +49,7 @@ class DBHelper {
 		});
 	}
 	static fetchRestaurantsFromServer(callback) {
-		fetch(DBHelper.DATABASE_URL)
+		fetch(DBHelper.DATABASE_URL + 'restaurants')
 			.then(function (response) {
 				return response.json();
 			})
@@ -80,20 +80,20 @@ class DBHelper {
 			}
 			const index = db.transaction('restaurants').objectStore('restaurants');
 			return index.get(id).then(restaurant => {
-				if (!restaurant) {
-					callback(null, restaurant);
+				if (restaurant) {
+					DBHelper.fetchReviewsByRestaurantId(restaurant, callback);
 				}
 				DBHelper.fetchRestaurantByIdFromServer(id, callback);
 			});
 		});		
 	}
 	static fetchRestaurantByIdFromServer(id, callback) {
-		fetch(DBHelper.DATABASE_URL + `/${id}`)
+		fetch(DBHelper.DATABASE_URL + `restaurants/${id}`)
 			.then(function (response) {
 				return response.json();
 			})
 			.then(function (data) {
-				callback(null, data);
+				DBHelper.fetchReviewsFromServer(data, callback);
 			});
 	}
 	/**
@@ -185,6 +185,49 @@ class DBHelper {
 		});
 	}
 
+	static fetchReviewsByRestaurantId (restaurant, callback) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			if (!db) {
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			}
+			const index = db.transaction('reviews').objectStore('restaurants');
+			return index.getAll(restaurant.id).then(reviews => {
+				if (!reviews) {
+					return(reviews);
+				}
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			});
+		});
+	} 
+
+	static fetchReviewsFromServer (restaurant, callback) {
+		fetch(this.DATABASE_URL + `reviews/?restaurant_id=${restaurant.id}`)
+			.then(function (response) {
+				return response.json();
+			})
+			.then(function (data) {
+				DBHelper.saveReviewsIdb(data);
+				restaurant.reviews = data;
+				callback(null, restaurant);
+			});
+	}
+
+	static saveReviewsIdb(reviews) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('reviews', 'readwrite').objectStore('reviews');
+			if (Array.isArray(reviews)) {
+				reviews.forEach(function(review) {
+					store.put(review);
+				});
+			}
+			else {
+				store.put(reviews);
+			}
+
+		});
+	}
 	/**
 	 * Restaurant page URL.
 	 */
@@ -219,7 +262,7 @@ class DBHelper {
 	}
 
 	static updateFavourite (restaurantId, isFavourite) { 
-		fetch(this.DATABASE_URL + `/${restaurantId}/?is_favourite=${isFavourite}`, {
+		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favourite=${isFavourite}`, {
 			method: 'PUT'
 		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
 	}
@@ -232,6 +275,18 @@ class DBHelper {
 				restaurant.is_favorite = isFavourite;
 				store.put(restaurant);
 			});
+		});
+	}
+
+	static saveReview (review) {
+		fetch(this.DATABASE_URL + 'reviews', {
+			method: 'POST',
+			body: JSON.stringify(review),
+			headers: new Headers({
+				'Content-Type': 'application/json'
+			})
+		}).then(function (response) {
+			return response;
 		});
 	}
 
