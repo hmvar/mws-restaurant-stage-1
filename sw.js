@@ -3,6 +3,7 @@ let allCaches = [
 	staticCacheName
 ];
 self.addEventListener('install', function (event) {
+	console.log('installing');
 	event.waitUntil(
 		caches.open(staticCacheName).then(function (cache) {
 			return cache.addAll([
@@ -16,7 +17,7 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function(event) {
 	event.waitUntil(
 		caches.keys().then(function(cacheNames) {
-			console.log('test');
+			console.log('activate');
 			return Promise.all(
 				cacheNames.filter(function(cacheName) {
 					return cacheName.startsWith('mws-review') &&
@@ -35,13 +36,9 @@ self.addEventListener('fetch', function(event) {
 		// 	event.respondWith(caches.match('/skeleton'));
 		//  	return;
 		// }
-		// if (requestUrl.pathname.startsWith('/photos/')) {
+		// if (requestUrl.pathname.startsWith('/img/')) {
 		// 	event.respondWith(servePhoto(event.request));
 		//  	return;
-		// }
-		// if (requestUrl.pathname.startsWith('/avatars/')) {
-		// 	event.respondWith(serveAvatar(event.request));
-		// 	return;
 		// }
 	}
 	event.respondWith(

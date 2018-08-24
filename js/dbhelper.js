@@ -27,6 +27,9 @@ class DBHelper {
 					upgradeDb.createObjectStore('reviews', {
 						keyPath: 'id'
 					}).createIndex('restaurant', 'restaurant_id');
+					upgradeDb.createObjectStore('offline-reviews', {
+						autoIncrement: true
+					}).createIndex('restaurant', 'restaurant_id');
 			}
 		});
 	}
@@ -191,16 +194,36 @@ class DBHelper {
 			if (!db) {
 				DBHelper.fetchReviewsFromServer(restaurant, callback);
 			}
-			const index = db.transaction('reviews').objectStore('restaurants');
-			return index.getAll(restaurant.id).then(reviews => {
-				if (!reviews) {
-					return(reviews);
+			const index = db.transaction('reviews').objectStore('reviews');
+			index.getAll(restaurant.id).then(reviews => {
+				if ((!reviews) || (!reviews.length)) {
+					DBHelper.fetchReviewsFromServer(restaurant, callback);
 				}
-				DBHelper.fetchReviewsFromServer(restaurant, callback);
+				restaurant.reviews = reviews;
+				DBHelper.fetchOfflineReviews(restaurant, callback);
+				//callback(null, restaurant);
 			});
 		});
 	} 
-
+	static fetchOfflineReviews (restaurant, callback) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			
+			if (!db) {
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			}
+			const index = db.transaction('offline-reviews').objectStore('offline-reviews');
+			index.getAll(restaurant.id).then(reviews => {
+				if ((reviews) && (reviews.length)) {
+					reviews.forEach(review => {
+						restaurant.reviews.push(review);
+					});
+				}
+				callback(null, restaurant);
+				//DBHelper.fetchReviewsFromServer(restaurant, callback);
+			});
+		});
+	};
 	static fetchReviewsFromServer (restaurant, callback) {
 		fetch(this.DATABASE_URL + `reviews/?restaurant_id=${restaurant.id}`)
 			.then(function (response) {
@@ -209,11 +232,51 @@ class DBHelper {
 			.then(function (data) {
 				DBHelper.saveReviewsIdb(data);
 				restaurant.reviews = data;
-				callback(null, restaurant);
+
+				DBHelper.fetchOfflineReviews(restaurant, callback);
 			});
 	}
+	static saveReview (review) {
+		return fetch(this.DATABASE_URL + 'reviews', {
+			method: 'POST',
+			body: JSON.stringify(review),
+			headers: new Headers({
+				'Content-Type': 'application/json'
+			})
+		});
+	}
+	static saveReviewOffline (review) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('offline-reviews', 'readwrite').objectStore('offline-reviews');
+			store.put(review);
+		});
+	}
+	static uploadOfflineReviews () {
+		const dbPromise = DBHelper.OpenDbPromise();
+		dbPromise.then(function(db) {
+			const index = db.transaction('offline-reviews', 'readwrite').objectStore('offline-reviews');
+			index.getAll().then(reviews => {
+				if (reviews) {
+					reviews.forEach(function (review) {
+						review.offline = false;
 
-	static saveReviewsIdb(reviews) {
+						DBHelper.saveReview(review).then(function (response) {
+							return response.json();
+						}).then(function (data) {
+							DBHelper.saveReviewsIdb(data);
+						});
+					});
+					index.clear();
+					let offlineReviews = document.querySelectorAll('.review-offline');
+					offlineReviews.forEach(offRev => {
+						offRev.className = '';
+					});
+				}
+			});
+		});
+	}
+	static saveReviewsIdb (reviews) {
 		const dbPromise = this.OpenDbPromise();
 		dbPromise.then(function(db) {
 			let store = db.transaction('reviews', 'readwrite').objectStore('reviews');
@@ -225,7 +288,6 @@ class DBHelper {
 			else {
 				store.put(reviews);
 			}
-
 		});
 	}
 	/**
@@ -262,9 +324,11 @@ class DBHelper {
 	}
 
 	static updateFavourite (restaurantId, isFavourite) { 
-		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favourite=${isFavourite}`, {
+		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favorite=${isFavourite}`, {
 			method: 'PUT'
-		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
+		}).then(
+			DBHelper.updateFavouriteIdb(restaurantId, isFavourite)
+		);
 	}
 
 	static updateFavouriteIdb (restaurantId, isFavourite) {
@@ -277,17 +341,4 @@ class DBHelper {
 			});
 		});
 	}
-
-	static saveReview (review) {
-		fetch(this.DATABASE_URL + 'reviews', {
-			method: 'POST',
-			body: JSON.stringify(review),
-			headers: new Headers({
-				'Content-Type': 'application/json'
-			})
-		}).then(function (response) {
-			return response;
-		});
-	}
-
 }

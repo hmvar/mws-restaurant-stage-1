@@ -1,6 +1,8 @@
 let app = {};
 let registerServiceWorker = function () {
-	if (!navigator.serviceWorker) return;
+	if (!navigator.serviceWorker) {
+		return;
+	}
 	navigator.serviceWorker.register('/sw.js').then(function (reg) {
 		if (!navigator.serviceWorker.controller) {
 			return;

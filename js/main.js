@@ -148,7 +148,15 @@ let createRestaurantHTML = (restaurant) => {
 
 	const favStar = document.createElement('button');
 	favStar.className = 'fav-star';
-	favStar.innerHTML = restaurant.is_favorite ? '★' : '☆';
+	if (restaurant.is_favorite) {
+		favStar.innerHTML = '★';
+		favStar.setAttribute('aria-label', 'Remove restaurant from favourites.');
+	}
+	else {
+		favStar.innerHTML = '☆';
+		favStar.setAttribute('aria-label', 'Add restaurant to favourites.');
+	}
+	favStar.setAttribute('role', 'button');
 	favStar.onclick = function () {
 		if (this.innerHTML == '★') {
 			DBHelper.updateFavourite(restaurant.id, false);

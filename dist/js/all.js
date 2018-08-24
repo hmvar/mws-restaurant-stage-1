@@ -46,6 +46,9 @@ class DBHelper {
 					upgradeDb.createObjectStore('reviews', {
 						keyPath: 'id'
 					}).createIndex('restaurant', 'restaurant_id');
+					upgradeDb.createObjectStore('offline-reviews', {
+						autoIncrement: true
+					}).createIndex('restaurant', 'restaurant_id');
 			}
 		});
 	}
@@ -210,16 +213,36 @@ class DBHelper {
 			if (!db) {
 				DBHelper.fetchReviewsFromServer(restaurant, callback);
 			}
-			const index = db.transaction('reviews').objectStore('restaurants');
-			return index.getAll(restaurant.id).then(reviews => {
-				if (!reviews) {
-					return(reviews);
+			const index = db.transaction('reviews').objectStore('reviews');
+			index.getAll(restaurant.id).then(reviews => {
+				if ((!reviews) || (!reviews.length)) {
+					DBHelper.fetchReviewsFromServer(restaurant, callback);
 				}
-				DBHelper.fetchReviewsFromServer(restaurant, callback);
+				restaurant.reviews = reviews;
+				DBHelper.fetchOfflineReviews(restaurant, callback);
+				//callback(null, restaurant);
 			});
 		});
 	} 
-
+	static fetchOfflineReviews (restaurant, callback) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			
+			if (!db) {
+				DBHelper.fetchReviewsFromServer(restaurant, callback);
+			}
+			const index = db.transaction('offline-reviews').objectStore('offline-reviews');
+			index.getAll(restaurant.id).then(reviews => {
+				if ((reviews) && (reviews.length)) {
+					reviews.forEach(review => {
+						restaurant.reviews.push(review);
+					});
+				}
+				callback(null, restaurant);
+				//DBHelper.fetchReviewsFromServer(restaurant, callback);
+			});
+		});
+	};
 	static fetchReviewsFromServer (restaurant, callback) {
 		fetch(this.DATABASE_URL + `reviews/?restaurant_id=${restaurant.id}`)
 			.then(function (response) {
@@ -228,11 +251,51 @@ class DBHelper {
 			.then(function (data) {
 				DBHelper.saveReviewsIdb(data);
 				restaurant.reviews = data;
-				callback(null, restaurant);
+
+				DBHelper.fetchOfflineReviews(restaurant, callback);
 			});
 	}
+	static saveReview (review) {
+		return fetch(this.DATABASE_URL + 'reviews', {
+			method: 'POST',
+			body: JSON.stringify(review),
+			headers: new Headers({
+				'Content-Type': 'application/json'
+			})
+		});
+	}
+	static saveReviewOffline (review) {
+		const dbPromise = this.OpenDbPromise();
+		dbPromise.then(function(db) {
+			let store = db.transaction('offline-reviews', 'readwrite').objectStore('offline-reviews');
+			store.put(review);
+		});
+	}
+	static uploadOfflineReviews () {
+		const dbPromise = DBHelper.OpenDbPromise();
+		dbPromise.then(function(db) {
+			const index = db.transaction('offline-reviews', 'readwrite').objectStore('offline-reviews');
+			index.getAll().then(reviews => {
+				if (reviews) {
+					reviews.forEach(function (review) {
+						review.offline = false;
 
-	static saveReviewsIdb(reviews) {
+						DBHelper.saveReview(review).then(function (response) {
+							return response.json();
+						}).then(function (data) {
+							DBHelper.saveReviewsIdb(data);
+						});
+					});
+					index.clear();
+					let offlineReviews = document.querySelectorAll('.review-offline');
+					offlineReviews.forEach(offRev => {
+						offRev.className = '';
+					});
+				}
+			});
+		});
+	}
+	static saveReviewsIdb (reviews) {
 		const dbPromise = this.OpenDbPromise();
 		dbPromise.then(function(db) {
 			let store = db.transaction('reviews', 'readwrite').objectStore('reviews');
@@ -244,7 +307,6 @@ class DBHelper {
 			else {
 				store.put(reviews);
 			}
-
 		});
 	}
 	/**
@@ -281,9 +343,11 @@ class DBHelper {
 	}
 
 	static updateFavourite (restaurantId, isFavourite) { 
-		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favourite=${isFavourite}`, {
+		fetch(this.DATABASE_URL + `restaurants/${restaurantId}/?is_favorite=${isFavourite}`, {
 			method: 'PUT'
-		}).then(this.updateFavouriteIdb(restaurantId, isFavourite));
+		}).then(
+			DBHelper.updateFavouriteIdb(restaurantId, isFavourite)
+		);
 	}
 
 	static updateFavouriteIdb (restaurantId, isFavourite) {
@@ -296,28 +360,20 @@ class DBHelper {
 			});
 		});
 	}
-
-	static saveReview (review) {
-		fetch(this.DATABASE_URL + 'reviews', {
-			method: 'POST',
-			body: JSON.stringify(review),
-			headers: new Headers({
-				'Content-Type': 'application/json'
-			})
-		}).then(function (response) {
-			return response;
-		});
-	}
-
 }
 let app = {};
 let registerServiceWorker = function () {
-	if (!navigator.serviceWorker) return;
+	console.log('called');
+	if (!navigator.serviceWorker) {
+		console.log('no serviceworker');
+		return;
+	}
 	navigator.serviceWorker.register('/sw.js').then(function (reg) {
 		if (!navigator.serviceWorker.controller) {
 			return;
 		}
 		if (reg.waiting) {
+			console.log('reg.waiting');
 			app.updateReady(reg.waiting);
 			return;
 		}
@@ -388,6 +444,7 @@ var markers = [];
  *  *  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', () => {
+	console.log('dom loaded');
 	registerServiceWorker();
 	fetchNeighborhoods();
 	fetchCuisines();
@@ -529,7 +586,15 @@ let createRestaurantHTML = (restaurant) => {
 
 	const favStar = document.createElement('button');
 	favStar.className = 'fav-star';
-	favStar.innerHTML = restaurant.is_favorite ? '★' : '☆';
+	if (restaurant.is_favorite) {
+		favStar.innerHTML = '★';
+		favStar.setAttribute('aria-label', 'Remove restaurant from favourites.');
+	}
+	else {
+		favStar.innerHTML = '☆';
+		favStar.setAttribute('aria-label', 'Add restaurant to favourites.');
+	}
+	favStar.setAttribute('role', 'button');
 	favStar.onclick = function () {
 		if (this.innerHTML == '★') {
 			DBHelper.updateFavourite(restaurant.id, false);
@@ -640,6 +705,9 @@ if (window.location.pathname === '/restaurant.html') {
 	};
 	window.onload = function () {
 		window.onscroll();
+		if (navigator.onLine) {
+			DBHelper.uploadOfflineReviews();
+		}
 	};
 }
 /**
@@ -805,34 +873,12 @@ let submitReview = function () {
 		'comments': comment
 	};
 	if (!navigator.onLine) {
-		uploadReviewWhenOnline(review);
 		review.offline = true;
+		DBHelper.saveReviewOffline(review);
+		window.addEventListener('online', DBHelper.uploadOfflineReviews);
 	} else {
 		DBHelper.saveReview(review);
 	}
 	document.getElementById('reviews-list').appendChild(createReviewHTML(review));
 	document.getElementById('add-review-form').reset();
-};
-
-let uploadReviewWhenOnline = function (review) {
-	let index = (localStorage.getItem('reviewIndex') != null) ? parseInt(localStorage.getItem('reviewIndex')) : 0;
-	index += 1;
-	localStorage.setItem('reviewIndex', index);
-	localStorage.setItem(`review-${index}`, JSON.stringify(review));
-	window.addEventListener('online', function () {
-		let id = parseInt(localStorage.getItem('reviewIndex'));
-		let review;
-		for (let i = 1; i <= id; i++) {
-			review = JSON.parse(localStorage.getItem(`review-${i}`));
-			if (review != null) {
-				DBHelper.saveReview(review);
-				localStorage.removeItem(`review-${i}`);
-			}
-		}
-		localStorage.removeItem('reviewIndex');
-		let offlineReviews = document.querySelectorAll('.review-offline');
-		offlineReviews.forEach(offRev => {
-			offRev.className = '';
-		});
-	});
 };

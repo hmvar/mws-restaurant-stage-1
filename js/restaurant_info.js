@@ -51,6 +51,9 @@ if (window.location.pathname === '/restaurant.html') {
 	};
 	window.onload = function () {
 		window.onscroll();
+		if (navigator.onLine) {
+			DBHelper.uploadOfflineReviews();
+		}
 	};
 }
 /**
@@ -216,34 +219,12 @@ let submitReview = function () {
 		'comments': comment
 	};
 	if (!navigator.onLine) {
-		uploadReviewWhenOnline(review);
 		review.offline = true;
+		DBHelper.saveReviewOffline(review);
+		window.addEventListener('online', DBHelper.uploadOfflineReviews);
 	} else {
 		DBHelper.saveReview(review);
 	}
 	document.getElementById('reviews-list').appendChild(createReviewHTML(review));
 	document.getElementById('add-review-form').reset();
-};
-
-let uploadReviewWhenOnline = function (review) {
-	let index = (localStorage.getItem('reviewIndex') != null) ? parseInt(localStorage.getItem('reviewIndex')) : 0;
-	index += 1;
-	localStorage.setItem('reviewIndex', index);
-	localStorage.setItem(`review-${index}`, JSON.stringify(review));
-	window.addEventListener('online', function () {
-		let id = parseInt(localStorage.getItem('reviewIndex'));
-		let review;
-		for (let i = 1; i <= id; i++) {
-			review = JSON.parse(localStorage.getItem(`review-${i}`));
-			if (review != null) {
-				DBHelper.saveReview(review);
-				localStorage.removeItem(`review-${i}`);
-			}
-		}
-		localStorage.removeItem('reviewIndex');
-		let offlineReviews = document.querySelectorAll('.review-offline');
-		offlineReviews.forEach(offRev => {
-			offRev.className = '';
-		});
-	});
 };
